@@ -23,6 +23,7 @@ interface Transaction {
   referenceId: string;
   createdAt: string;
   user: {
+    id: string;
     name: string;
     email: string;
     clientProfile: {
