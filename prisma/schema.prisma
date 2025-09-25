@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("CLIENT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clientProfile ClientProfile?
+  transactions  Transaction[]
+  smsLogs       SmsLog[]
+
+  @@map("users")
+}
+
+model ClientProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  companyName String
+  phoneNumber String?
+  address     String?
+  balance     Float   @default(0)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("client_profiles")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Float
+  type        String
+  status      String   @default("PENDING")
+  description String?
+  referenceId String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model SmsLog {
+  id          String    @id @default(cuid())
+  userId      String
+  phoneNumber String
+  message     String
+  status      String    @default("PENDING")
+  cost        Float     @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sms_logs")
+}
+
