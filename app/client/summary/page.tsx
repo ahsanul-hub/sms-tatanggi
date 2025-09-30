@@ -13,6 +13,8 @@ interface SummaryData {
     cost: number;
     billed: number;
     billedFromTransactions?: number;
+    paidInPeriod?: number;
+    outstanding?: number;
   };
 }
 
@@ -92,6 +94,9 @@ export default function ClientSummaryPage() {
   ];
 
   const billed = data?.totals.billed || 0;
+  const paidInPeriod = data?.totals.paidInPeriod || 0;
+  const outstanding =
+    data?.totals.outstanding || Math.max(billed - paidInPeriod, 0);
   const partialAmount = Number(customAmount.replace(/[^0-9]/g, "")) || 0;
 
   return (
@@ -187,18 +192,37 @@ export default function ClientSummaryPage() {
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-sm text-gray-500 mb-1">
-              Total Tagihan (SENT × 500)
-            </p>
-            <p className="text-2xl font-semibold">
-              Rp {billed.toLocaleString("id-ID")}
-            </p>
-            {typeof data.totals.billedFromTransactions === "number" && (
-              <p className="text-xs text-gray-500 mt-1">
-                (Ref transaksi DEBIT periode ini: Rp{" "}
-                {data.totals.billedFromTransactions.toLocaleString("id-ID")})
-              </p>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">
+                  Total Tagihan (sum cost SMS SENT/DELIVERED)
+                </p>
+                <p className="text-xl font-semibold">
+                  Rp {billed.toLocaleString("id-ID")}
+                </p>
+                {typeof data.totals.billedFromTransactions === "number" && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    (Ref transaksi DEBIT periode ini: Rp{" "}
+                    {data.totals.billedFromTransactions.toLocaleString("id-ID")}
+                    )
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">
+                  Terbayar Periode Ini
+                </p>
+                <p className="text-xl font-semibold text-green-600">
+                  Rp {paidInPeriod.toLocaleString("id-ID")}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Sisa Tagihan</p>
+                <p className="text-xl font-semibold text-yellow-600">
+                  Rp {outstanding.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Pembayaran */}
@@ -208,10 +232,10 @@ export default function ClientSummaryPage() {
             </h3>
             <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-3 space-y-3 sm:space-y-0">
               <button
-                disabled={paying || billed <= 0}
-                onClick={() => pay(billed)}
+                disabled={paying || outstanding <= 0}
+                onClick={() => pay(outstanding)}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">
-                Bayar Penuh (Rp {billed.toLocaleString("id-ID")})
+                Bayar Penuh (Rp {outstanding.toLocaleString("id-ID")})
               </button>
               <div className="flex items-center space-x-2">
                 <input
@@ -222,7 +246,9 @@ export default function ClientSummaryPage() {
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm w-52"
                 />
                 <button
-                  disabled={paying || partialAmount <= 0}
+                  disabled={
+                    paying || partialAmount <= 0 || partialAmount > outstanding
+                  }
                   onClick={() => pay(partialAmount)}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
                   Bayar Parsial
@@ -230,8 +256,8 @@ export default function ClientSummaryPage() {
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Anda akan diarahkan ke URL pembayaran mock. Status transaksi akan
-              dibuat sebagai PENDING.
+              Anda akan diarahkan ke halaman pembayaran. Status transaksi akan
+              dibuat sebagai PENDING dan diperbarui melalui notifikasi webhook.
             </p>
           </div>
         </div>

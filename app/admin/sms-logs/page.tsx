@@ -261,14 +261,12 @@ export default function AdminSmsLogsPage() {
                             Klien: {log.user.clientProfile.companyName} (
                             {log.user.name})
                           </p>
-                          <span className="mx-2">•</span>
-                          <p>
+                          <p className="mx-2">
                             Dibuat:{" "}
                             {new Date(log.createdAt).toLocaleString("id-ID")}
                           </p>
                           {log.sentAt && (
                             <>
-                              <span className="mx-2">•</span>
                               <p>
                                 Dikirim:{" "}
                                 {new Date(log.sentAt).toLocaleString("id-ID")}

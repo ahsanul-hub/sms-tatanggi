@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { MockPaymentGateway } from "@/lib/payment";
 import dayjs from "dayjs";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function toBodySignFromJson(jsonString: string, appSecret: string): string {
+  // jsonString harus tanpa escape slash
+  const normalized = jsonString.replace(/\\\//g, "/");
+  const crypto = require("crypto");
+  const hmac = crypto.createHmac("sha256", appSecret);
+  hmac.update(normalized, "utf8");
+  const base64 = hmac.digest("base64");
+  return base64.replace(/\+/g, "-").replace(/\//g, "_");
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +38,13 @@ export async function POST(request: NextRequest) {
 
     const referenceId = `PAY_${y}${String(m).padStart(2, "0")}_${Date.now()}`;
 
-    // Buat transaksi PAYMENT (pending)
+    // Ambil data klien untuk phoneNumber / nama
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: { clientProfile: true },
+    });
+
+    // Simpan transaksi PAYMENT (PENDING)
     const transaction = await prisma.transaction.create({
       data: {
         userId: session.user.id,
@@ -41,29 +59,91 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Buat sesi pembayaran di mock gateway
-    const paymentGateway = MockPaymentGateway.getInstance();
-    const paymentResponse = await paymentGateway.createPayment({
-      amount,
-      description: transaction.description || "Pembayaran tagihan",
-      userId: session.user.id,
-      referenceId,
+    // Panggil payment gateway Redision
+    const baseUrl =
+      process.env.REDISION_BASE_URL || "https://sandbox-payment.redision.com";
+    const appkey = process.env.REDISION_APPKEY as string;
+    const appid = process.env.REDISION_APPID as string;
+    const appsecret = process.env.REDISION_APPSECRET as string;
+
+    if (!appkey || !appid || !appsecret) {
+      return NextResponse.json(
+        { message: "Konfigurasi payment gateway tidak lengkap" },
+        { status: 500 }
+      );
+    }
+
+    const redirectUrl = `${
+      process.env.NEXTAUTH_URL || "http://localhost:3000"
+    }/client/summary`;
+    const notifyUrl =
+      process.env.REDISION_NOTIFY_URL ||
+      `${
+        process.env.NEXTAUTH_URL || "http://localhost:3000"
+      }/api/payment/notify`;
+
+    // SUSUN PAYLOAD FINAL dengan urutan key yang konsisten (sesuai contoh curl)
+    const userIdField = dbUser?.email || session.user.email || session.user.id;
+    const userMdnField = dbUser?.clientProfile?.phoneNumber || userIdField;
+    const customerName = dbUser?.name || session.user.name || "Client";
+
+    const requestBodyObj: Record<string, any> = {
+      redirect_url: redirectUrl,
+      user_id: userIdField,
+      user_mdn: userMdnField,
+      merchant_transaction_id: referenceId,
+      payment_method: "visa_master",
+      currency: "IDR",
+      amount: amount,
+      item_name: "SMS Billing",
+      customer_name: customerName,
+      notification_url: notifyUrl,
+    };
+
+    // Stringify tanpa escape slash (kemudian normalisasi sebelum sign)
+    const requestBodyJson = JSON.stringify(requestBodyObj);
+    const bodysign = toBodySignFromJson(requestBodyJson, appsecret);
+
+    const resp = await fetch(`${baseUrl}/api/transaction`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        appkey,
+        appid,
+        bodysign,
+      } as any,
+      body: requestBodyJson,
     });
 
-    if (!paymentResponse.success) {
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: { status: "FAILED" },
       });
       return NextResponse.json(
-        { message: paymentResponse.message },
+        {
+          message:
+            data?.message ||
+            data?.error ||
+            "Gagal membuat transaksi pembayaran",
+          providerResponse: data,
+        },
         { status: 400 }
       );
     }
 
+    const paymentUrl =
+      data?.payment_url ||
+      data?.redirect_url ||
+      data?.data?.payment_url ||
+      data?.data?.redirect_url;
+
     return NextResponse.json({
       success: true,
-      paymentUrl: paymentResponse.paymentUrl,
+      paymentUrl,
+      providerResponse: data,
       transaction: {
         id: transaction.id,
         amount: transaction.amount,

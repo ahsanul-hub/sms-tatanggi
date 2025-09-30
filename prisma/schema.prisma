@@ -24,6 +24,8 @@ model User {
   transactions  Transaction[]
   smsLogs       SmsLog[]
 
+  @@index([role])        // Index untuk filter by role
+  @@index([createdAt])   // Index untuk sorting by date
   @@map("users")
 }
 
@@ -58,6 +60,10 @@ model Transaction {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])      // Index untuk filter by user
+  @@index([type])        // Index untuk filter by transaction type
+  @@index([status])      // Index untuk filter by status
+  @@index([createdAt])   // Index untuk sorting by date
   @@map("transactions")
 }
 
@@ -74,6 +80,10 @@ model SmsLog {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])      // Index untuk filter by user
+  @@index([status])      // Index untuk filter by SMS status
+  @@index([createdAt])   // Index untuk sorting by date
+  @@index([sentAt])      // Index untuk filter by sent date
   @@map("sms_logs")
 }
 

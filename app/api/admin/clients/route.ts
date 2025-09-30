@@ -3,8 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
+    // Check if we're in build time
+    if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { message: "Database not configured" },
+        { status: 503 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user || session.user.role !== "ADMIN") {

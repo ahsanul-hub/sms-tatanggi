@@ -16,9 +16,11 @@ interface ClientStats {
   totalSmsSent: number;
   pendingBills: number;
   totalSpent: number;
+  totalBilledAllTime?: number;
   lastTransaction: string | null;
   billedThisMonth: number;
   paidThisMonth: number;
+  outstandingThisMonth: number;
 }
 
 export default function ClientDashboard() {
@@ -28,9 +30,11 @@ export default function ClientDashboard() {
     totalSmsSent: 0,
     pendingBills: 0,
     totalSpent: 0,
+    totalBilledAllTime: 0,
     lastTransaction: null,
     billedThisMonth: 0,
     paidThisMonth: 0,
+    outstandingThisMonth: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -97,8 +101,8 @@ export default function ClientDashboard() {
       bgColor: "bg-orange-100",
     },
     {
-      name: "Total Tagihan Bulan Ini",
-      value: `Rp ${stats.billedThisMonth.toLocaleString("id-ID")}`,
+      name: "Sisa Tagihan Bulan Ini",
+      value: `Rp ${stats.outstandingThisMonth.toLocaleString("id-ID")}`,
       icon: DollarSign,
       color: "text-yellow-600",
       bgColor: "bg-yellow-100",
@@ -112,7 +116,7 @@ export default function ClientDashboard() {
     },
     {
       name: "Total Tagihan (all time)",
-      value: `Rp ${stats.totalSpent.toLocaleString("id-ID")}`,
+      value: `Rp ${(stats.totalBilledAllTime || 0).toLocaleString("id-ID")}`,
       icon: DollarSign,
       color: "text-indigo-600",
       bgColor: "bg-indigo-100",

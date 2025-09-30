@@ -35,9 +35,10 @@ export async function GET(request: NextRequest) {
     });
 
     const totalSms = smsLogs.length;
-    const totalSent = smsLogs.filter(
+    const sentLogs = smsLogs.filter(
       (s) => s.status === "SENT" || s.status === "DELIVERED"
-    ).length;
+    );
+    const totalSent = sentLogs.length;
     const totalFailed = smsLogs.filter((s) => s.status === "FAILED").length;
     const totalCost = smsLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
 
@@ -53,8 +54,21 @@ export async function GET(request: NextRequest) {
 
     const billedFromTransactions = Math.abs(billingAgg._sum.amount || 0);
 
-    // Billed utama mengikuti kebijakan: hanya SMS berhasil yang ditagih
-    const billed = totalSent * 500;
+    // Billed utama: mendukung harga per SMS berbeda, jumlahkan cost SMS terkirim
+    const billed = sentLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+    // Pembayaran berhasil pada periode (PAYMENT COMPLETED)
+    const paidAgg = await prisma.transaction.aggregate({
+      where: {
+        userId: session.user.id,
+        type: "PAYMENT",
+        status: "COMPLETED",
+        createdAt: { gte: start.toDate(), lte: end.toDate() },
+      },
+      _sum: { amount: true },
+    });
+    const paidInPeriod = paidAgg._sum.amount || 0;
+    const outstanding = Math.max(billed - paidInPeriod, 0);
 
     return NextResponse.json({
       period: {
@@ -69,6 +83,8 @@ export async function GET(request: NextRequest) {
         failed: totalFailed,
         cost: totalCost,
         billed, // berdasar SMS SENT × 500
+        paidInPeriod,
+        outstanding,
         billedFromTransactions, // informasi pembanding
       },
     });

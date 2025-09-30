@@ -23,7 +23,9 @@ export async function GET() {
       totalSpentAgg,
       lastTransaction,
       sentThisMonth,
+      costThisMonthAgg,
       paidThisMonthAgg,
+      totalBilledAgg,
     ] = await Promise.all([
       prisma.transaction.count({ where: { userId: session.user.id } }),
       prisma.smsLog.count({
@@ -56,6 +58,14 @@ export async function GET() {
           createdAt: { gte: startOfMonth, lte: endOfMonth },
         },
       }),
+      prisma.smsLog.aggregate({
+        where: {
+          userId: session.user.id,
+          status: { in: ["SENT", "DELIVERED"] },
+          createdAt: { gte: startOfMonth, lte: endOfMonth },
+        },
+        _sum: { cost: true },
+      }),
       prisma.transaction.aggregate({
         where: {
           userId: session.user.id,
@@ -65,19 +75,30 @@ export async function GET() {
         },
         _sum: { amount: true },
       }),
+      prisma.smsLog.aggregate({
+        where: {
+          userId: session.user.id,
+          status: { in: ["SENT", "DELIVERED"] },
+        },
+        _sum: { cost: true },
+      }),
     ]);
 
-    const billedThisMonth = sentThisMonth * 500; // kebijakan: hanya SMS berhasil
+    // Mendukung harga per SMS berbeda: jumlahkan cost SMS SENT/DELIVERED bulan ini
+    const billedThisMonth = costThisMonthAgg._sum.cost || 0;
     const paidThisMonth = paidThisMonthAgg._sum.amount || 0;
+    const outstandingThisMonth = Math.max(billedThisMonth - paidThisMonth, 0);
 
     return NextResponse.json({
       totalTransactions,
       totalSmsSent,
       pendingBills,
       totalSpent: Math.abs(totalSpentAgg._sum.amount || 0),
+      totalBilledAllTime: totalBilledAgg._sum.cost || 0,
       lastTransaction: lastTransaction?.createdAt || null,
       billedThisMonth,
       paidThisMonth,
+      outstandingThisMonth,
     });
   } catch (error) {
     console.error("Client dashboard stats error:", error);
