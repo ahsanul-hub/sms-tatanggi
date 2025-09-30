@@ -75,21 +75,13 @@ export async function POST(request: NextRequest) {
         .toString()
         .padStart(9, "0")}`;
 
-      const messages = [
-        "Pesan promosi produk terbaru",
-        "Notifikasi pembayaran jatuh tempo",
-        "Konfirmasi pesanan telah diterima",
-        "Reminder jadwal meeting",
-        "Update status pengiriman",
-        "Pemberitahuan maintenance sistem",
-        "Konfirmasi registrasi akun",
-        "Notifikasi saldo terbaru",
-        "Peringatan keamanan akun",
-        "Update informasi produk",
-      ];
+      // Generate random OTP (5-6 digits)
+      const otpLength = Math.random() < 0.5 ? 5 : 6;
+      const otp = Math.floor(Math.random() * Math.pow(10, otpLength))
+        .toString()
+        .padStart(otpLength, "0");
 
-      const randomMessage =
-        messages[Math.floor(Math.random() * messages.length)];
+      const randomMessage = `OTP anda adalah ${otp}`;
 
       const isFailed = failedIndexSet.has(i);
       const status = isFailed ? "FAILED" : "SENT";
