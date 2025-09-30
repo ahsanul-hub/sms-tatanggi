@@ -69,8 +69,9 @@ export default function ClientSummaryPage() {
         setMessage(json.message || "Gagal membuat pembayaran");
         return;
       }
-      // Redirect ke URL mock payment
-      window.location.href = json.paymentUrl;
+      // console.log(json);
+      // Buka tab baru untuk payment
+      window.open(json.paymentUrl, "_blank");
     } catch (e) {
       setMessage("Terjadi kesalahan saat membuat pembayaran");
     } finally {
