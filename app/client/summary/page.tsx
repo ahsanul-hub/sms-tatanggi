@@ -196,7 +196,7 @@ export default function ClientSummaryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-500 mb-1">
-                  Total Tagihan (sum cost SMS SENT/DELIVERED)
+                  Total Tagihan EXC TAX
                 </p>
                 <p className="text-xl font-semibold">
                   Rp {billed.toLocaleString("id-ID")}
