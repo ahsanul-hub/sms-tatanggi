@@ -1,65 +1,78 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { MessageSquare, Eye, EyeOff } from 'lucide-react'
+import { useState } from "react";
+import { signIn, getSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { MessageSquare, Eye, EyeOff } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
+  const { t, language } = useLanguage();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     try {
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
-      })
+      });
 
       if (result?.error) {
-        setError('Email atau password salah')
+        setError(
+          language === "id"
+            ? "Email atau password salah"
+            : "Invalid email or password"
+        );
       } else {
-        const session = await getSession()
-        if (session?.user.role === 'ADMIN') {
-          router.push('/admin/dashboard')
+        const session = await getSession();
+        if (session?.user.role === "ADMIN") {
+          router.push("/admin/dashboard");
         } else {
-          router.push('/client/dashboard')
+          router.push("/client/dashboard");
         }
       }
     } catch (error) {
-      setError('Terjadi kesalahan saat login')
+      setError(
+        language === "id"
+          ? "Terjadi kesalahan saat login"
+          : "An error occurred during login"
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <div>
           <div className="flex justify-center">
             <MessageSquare className="h-12 w-12 text-blue-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Masuk ke akun Anda
+            {t.auth.login.title}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Atau{' '}
+            {t.auth.login.noAccount}{" "}
             <Link
               href="/auth/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              daftar akun baru
+              className="font-medium text-blue-600 hover:text-blue-500">
+              {t.auth.login.registerLink}
             </Link>
           </p>
         </div>
@@ -72,7 +85,7 @@ export default function LoginPage() {
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
-                Email address
+                {t.auth.login.email}
               </label>
               <input
                 id="email"
@@ -81,31 +94,30 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Alamat email"
+                placeholder={t.auth.login.email}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="relative">
               <label htmlFor="password" className="sr-only">
-                Password
+                {t.auth.login.password}
               </label>
               <input
                 id="password"
                 name="password"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
+                placeholder={t.auth.login.password}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
+                onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? (
                   <EyeOff className="h-5 w-5 text-gray-400" />
                 ) : (
@@ -119,22 +131,27 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Memproses...' : 'Masuk'}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              {isLoading
+                ? language === "id"
+                  ? "Memproses..."
+                  : "Processing..."
+                : t.auth.login.loginButton}
             </button>
           </div>
 
           <div className="text-center">
             <Link
               href="/"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              ← Kembali ke halaman utama
+              className="text-sm text-blue-600 hover:text-blue-500">
+              ←{" "}
+              {language === "id"
+                ? "Kembali ke halaman utama"
+                : "Back to homepage"}
             </Link>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

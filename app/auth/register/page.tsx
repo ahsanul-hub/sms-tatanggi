@@ -1,84 +1,108 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { MessageSquare, Eye, EyeOff } from 'lucide-react'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { MessageSquare, Eye, EyeOff } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function RegisterPage() {
+  const { t, language } = useLanguage();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    companyName: '',
-    phoneNumber: '',
-    address: ''
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    companyName: "",
+    phoneNumber: "",
+    address: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const router = useRouter()
+  const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Password dan konfirmasi password tidak sama')
-      setIsLoading(false)
-      return
+      setError(
+        language === "id"
+          ? "Password dan konfirmasi password tidak sama"
+          : "Password and confirm password do not match"
+      );
+      setIsLoading(false);
+      return;
     }
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
-      })
+      });
 
       if (response.ok) {
-        router.push('/auth/login?message=Akun berhasil dibuat, silakan login')
+        const message =
+          language === "id"
+            ? "Akun berhasil dibuat, silakan login"
+            : "Account created successfully, please login";
+        router.push(`/auth/login?message=${encodeURIComponent(message)}`);
       } else {
-        const data = await response.json()
-        setError(data.message || 'Terjadi kesalahan saat mendaftar')
+        const data = await response.json();
+        setError(
+          data.message ||
+            (language === "id"
+              ? "Terjadi kesalahan saat mendaftar"
+              : "An error occurred during registration")
+        );
       }
     } catch (error) {
-      setError('Terjadi kesalahan saat mendaftar')
+      setError(
+        language === "id"
+          ? "Terjadi kesalahan saat mendaftar"
+          : "An error occurred during registration"
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <div>
           <div className="flex justify-center">
             <MessageSquare className="h-12 w-12 text-blue-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Daftar akun baru
+            {t.auth.register.title}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Atau{' '}
+            {t.auth.register.hasAccount}{" "}
             <Link
               href="/auth/login"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              masuk ke akun yang sudah ada
+              className="font-medium text-blue-600 hover:text-blue-500">
+              {t.auth.register.loginLink}
             </Link>
           </p>
         </div>
@@ -88,11 +112,13 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Nama Lengkap
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.name}
               </label>
               <input
                 id="name"
@@ -100,15 +126,17 @@ export default function RegisterPage() {
                 type="text"
                 required
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Nama lengkap Anda"
+                placeholder={t.auth.register.name}
                 value={formData.name}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.email}
               </label>
               <input
                 id="email"
@@ -116,15 +144,17 @@ export default function RegisterPage() {
                 type="email"
                 required
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Alamat email"
+                placeholder={t.auth.register.email}
                 value={formData.email}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                Nama Perusahaan
+              <label
+                htmlFor="companyName"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.companyName}
               </label>
               <input
                 id="companyName"
@@ -132,62 +162,67 @@ export default function RegisterPage() {
                 type="text"
                 required
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Nama perusahaan"
+                placeholder={t.auth.register.companyName}
                 value={formData.companyName}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
-                Nomor Telepon
+              <label
+                htmlFor="phoneNumber"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.phoneNumber}
               </label>
               <input
                 id="phoneNumber"
                 name="phoneNumber"
                 type="tel"
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Nomor telepon"
+                placeholder={t.auth.register.phoneNumber}
                 value={formData.phoneNumber}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                Alamat
+              <label
+                htmlFor="address"
+                className="block text-sm font-medium text-gray-700">
+                {t.common.address}
               </label>
               <textarea
                 id="address"
                 name="address"
                 rows={3}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Alamat perusahaan"
+                placeholder={t.common.address}
                 value={formData.address}
                 onChange={handleChange}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.password}
               </label>
               <div className="mt-1 relative">
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   required
                   className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Password"
+                  placeholder={t.auth.register.password}
                   value={formData.password}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
+                  onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400" />
                   ) : (
@@ -198,25 +233,26 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Konfirmasi Password
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700">
+                {t.auth.register.confirmPassword}
               </label>
               <div className="mt-1 relative">
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   required
                   className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Konfirmasi password"
+                  placeholder={t.auth.register.confirmPassword}
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                   {showConfirmPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400" />
                   ) : (
@@ -231,22 +267,27 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Memproses...' : 'Daftar'}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              {isLoading
+                ? language === "id"
+                  ? "Memproses..."
+                  : "Processing..."
+                : t.auth.register.registerButton}
             </button>
           </div>
 
           <div className="text-center">
             <Link
               href="/"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              ← Kembali ke halaman utama
+              className="text-sm text-blue-600 hover:text-blue-500">
+              ←{" "}
+              {language === "id"
+                ? "Kembali ke halaman utama"
+                : "Back to homepage"}
             </Link>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

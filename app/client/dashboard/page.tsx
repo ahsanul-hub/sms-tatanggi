@@ -10,6 +10,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface ClientStats {
   totalTransactions: number;
@@ -25,6 +27,7 @@ interface ClientStats {
 
 export default function ClientDashboard() {
   const { data: session } = useSession();
+  const { t, language } = useLanguage();
   const [stats, setStats] = useState<ClientStats>({
     totalTransactions: 0,
     totalSmsSent: 0,
@@ -59,8 +62,13 @@ export default function ClientDashboard() {
   if (loading) {
     return (
       <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {t.clientDashboard.title}
+          </h1>
+          <LanguageSwitcher />
+        </div>
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div
@@ -80,42 +88,42 @@ export default function ClientDashboard() {
 
   const statCards = [
     {
-      name: "Total Transaksi",
+      name: language === "id" ? "Total Transaksi" : "Total Transactions",
       value: stats.totalTransactions,
       icon: CreditCard,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
     },
     {
-      name: "SMS Terkirim",
+      name: t.clientDashboard.stats.sentSms,
       value: stats.totalSmsSent,
       icon: MessageSquare,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
     {
-      name: "Tagihan Pending (jumlah transaksi DEBIT PENDING)",
+      name: language === "id" ? "Tagihan Pending" : "Pending Bills",
       value: stats.pendingBills,
       icon: AlertCircle,
       color: "text-orange-600",
       bgColor: "bg-orange-100",
     },
     {
-      name: "Sisa Tagihan Bulan Ini",
+      name: t.clientDashboard.stats.outstandingThisMonth,
       value: `Rp ${stats.outstandingThisMonth.toLocaleString("id-ID")}`,
       icon: DollarSign,
       color: "text-yellow-600",
       bgColor: "bg-yellow-100",
     },
     {
-      name: "Terbayar Bulan Ini",
+      name: t.clientDashboard.stats.paidThisMonth,
       value: `Rp ${stats.paidThisMonth.toLocaleString("id-ID")}`,
       icon: TrendingUp,
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
     {
-      name: "Total Tagihan (all time)",
+      name: t.clientDashboard.stats.totalBilled,
       value: `Rp ${(stats.totalBilledAllTime || 0).toLocaleString("id-ID")}`,
       icon: DollarSign,
       color: "text-indigo-600",
@@ -126,10 +134,18 @@ export default function ClientDashboard() {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Client</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Selamat datang, {session?.user?.name}
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {t.clientDashboard.title}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {language === "id" ? "Selamat datang" : "Welcome"},{" "}
+              {session?.user?.name}
+            </p>
+          </div>
+          <LanguageSwitcher />
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -163,7 +179,9 @@ export default function ClientDashboard() {
 
       {/* Quick Actions */}
       <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Aksi Cepat</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">
+          {language === "id" ? "Aksi Cepat" : "Quick Actions"}
+        </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             href="/client/summary"
@@ -176,10 +194,14 @@ export default function ClientDashboard() {
             <div className="mt-4">
               <h3 className="text-lg font-medium">
                 <span className="absolute inset-0" aria-hidden="true" />
-                Ringkasan & Pembayaran
+                {language === "id"
+                  ? "Ringkasan & Pembayaran"
+                  : "Summary & Payment"}
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                Lihat total tagihan bulan ini dan lakukan pembayaran
+                {language === "id"
+                  ? "Lihat total tagihan bulan ini dan lakukan pembayaran"
+                  : "View this month's bill and make a payment"}
               </p>
             </div>
           </Link>
@@ -195,10 +217,12 @@ export default function ClientDashboard() {
             <div className="mt-4">
               <h3 className="text-lg font-medium">
                 <span className="absolute inset-0" aria-hidden="true" />
-                SMS Logs
+                {t.navigation.smsLogs}
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                Lihat riwayat pengiriman SMS
+                {language === "id"
+                  ? "Lihat riwayat pengiriman SMS"
+                  : "View SMS delivery history"}
               </p>
             </div>
           </Link>

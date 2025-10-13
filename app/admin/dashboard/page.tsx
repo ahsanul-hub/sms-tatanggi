@@ -10,6 +10,8 @@ import {
   DollarSign,
   Activity,
 } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface DashboardStats {
   totalClients: number;
@@ -23,6 +25,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const { data: session } = useSession();
+  const { t, language } = useLanguage();
   const [stats, setStats] = useState<DashboardStats>({
     totalClients: 0,
     totalTransactions: 0,
@@ -55,8 +58,13 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {t.adminDashboard.title}
+          </h1>
+          <LanguageSwitcher />
+        </div>
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div
@@ -76,42 +84,42 @@ export default function AdminDashboard() {
 
   const statCards = [
     {
-      name: "Total Klien",
+      name: t.adminDashboard.stats.totalClients,
       value: stats.totalClients,
       icon: Users,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
     },
     {
-      name: "Total Transaksi",
+      name: language === "id" ? "Total Transaksi" : "Total Transactions",
       value: stats.totalTransactions,
       icon: CreditCard,
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
     {
-      name: "SMS Terkirim",
+      name: language === "id" ? "SMS Terkirim" : "SMS Sent",
       value: stats.totalSmsSent,
       icon: MessageSquare,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
     {
-      name: "Total Revenue",
+      name: t.adminDashboard.stats.totalRevenue,
       value: `Rp ${stats.totalRevenue.toLocaleString("id-ID")}`,
       icon: DollarSign,
       color: "text-yellow-600",
       bgColor: "bg-yellow-100",
     },
     {
-      name: "Tagihan Terbayar",
+      name: t.adminDashboard.stats.totalPaid,
       value: `Rp ${stats.totalPaid.toLocaleString("id-ID")}`,
       icon: TrendingUp,
       color: "text-indigo-600",
       bgColor: "bg-indigo-100",
     },
     {
-      name: "Transaksi Pending",
+      name: language === "id" ? "Transaksi Pending" : "Pending Transactions",
       value: stats.pendingTransactions,
       icon: Activity,
       color: "text-orange-600",
@@ -122,10 +130,18 @@ export default function AdminDashboard() {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Admin</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Selamat datang, {session?.user?.name}
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {t.adminDashboard.title}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {language === "id" ? "Selamat datang" : "Welcome"},{" "}
+              {session?.user?.name}
+            </p>
+          </div>
+          <LanguageSwitcher />
+        </div>
       </div>
 
       {/* Stats Grid */}

@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function AdminLayout({
   children,
@@ -24,6 +26,7 @@ export default function AdminLayout({
   const { data: session, status } = useSession();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { t, language } = useLanguage();
 
   useEffect(() => {
     if (status === "loading") return;
@@ -52,12 +55,24 @@ export default function AdminLayout({
   }
 
   const navigation = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Klien", href: "/admin/clients", icon: Users },
-    { name: "Transaksi", href: "/admin/transactions", icon: CreditCard },
-    { name: "SMS Logs", href: "/admin/sms-logs", icon: MessageSquare },
     {
-      name: "Generate Tagihan",
+      name: t.navigation.dashboard,
+      href: "/admin/dashboard",
+      icon: LayoutDashboard,
+    },
+    { name: t.navigation.clients, href: "/admin/clients", icon: Users },
+    {
+      name: t.navigation.transactions,
+      href: "/admin/transactions",
+      icon: CreditCard,
+    },
+    {
+      name: t.navigation.smsLogs,
+      href: "/admin/sms-logs",
+      icon: MessageSquare,
+    },
+    {
+      name: t.navigation.generateBilling,
       href: "/admin/generate-billing",
       icon: Settings,
     },
@@ -87,7 +102,7 @@ export default function AdminLayout({
             <div className="flex-shrink-0 flex items-center px-4">
               <MessageSquare className="h-8 w-8 text-blue-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">
-                Admin Panel
+                {language === "id" ? "Admin Panel" : "Admin Panel"}
               </span>
             </div>
             <nav className="mt-5 px-2 space-y-1">
@@ -113,7 +128,7 @@ export default function AdminLayout({
               <div className="flex items-center flex-shrink-0 px-4">
                 <MessageSquare className="h-8 w-8 text-blue-600" />
                 <span className="ml-2 text-xl font-bold text-gray-900">
-                  Admin Panel
+                  {language === "id" ? "Admin Panel" : "Admin Panel"}
                 </span>
               </div>
               <nav className="mt-5 flex-1 px-2 space-y-1">
@@ -129,7 +144,7 @@ export default function AdminLayout({
               </nav>
             </div>
             <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-              <div className="flex items-center">
+              <div className="flex items-center w-full">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
                     <span className="text-sm font-medium text-white">
@@ -137,18 +152,21 @@ export default function AdminLayout({
                     </span>
                   </div>
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-1">
                   <p className="text-sm font-medium text-gray-700">
                     {session.user.name}
                   </p>
                   <p className="text-xs text-gray-500">Administrator</p>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <LanguageSwitcher />
+                  <button
+                    onClick={() => signOut()}
+                    className="flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-500">
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => signOut()}
-                className="ml-auto flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-500">
-                <LogOut className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>

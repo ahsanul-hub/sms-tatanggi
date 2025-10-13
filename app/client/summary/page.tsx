@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { FileDown, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface SummaryData {
   period: { month: number; year: number; start: string; end: string };
@@ -19,6 +21,7 @@ interface SummaryData {
 }
 
 export default function ClientSummaryPage() {
+  const { t, language } = useLanguage();
   const now = dayjs();
   const [month, setMonth] = useState(now.month() + 1); // 1-12
   const [year, setYear] = useState(now.year());
@@ -79,20 +82,36 @@ export default function ClientSummaryPage() {
     }
   };
 
-  const months = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ];
+  const months =
+    language === "id"
+      ? [
+          "Januari",
+          "Februari",
+          "Maret",
+          "April",
+          "Mei",
+          "Juni",
+          "Juli",
+          "Agustus",
+          "September",
+          "Oktober",
+          "November",
+          "Desember",
+        ]
+      : [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
 
   const billed = data?.totals.billed || 0;
   const paidInPeriod = data?.totals.paidInPeriod || 0;
@@ -105,24 +124,30 @@ export default function ClientSummaryPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Ringkasan Tagihan
+            {t.summary.title}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Ringkasan tagihan bulanan berdasarkan transaksi dan biaya SMS.
+            {language === "id"
+              ? "Ringkasan tagihan bulanan berdasarkan transaksi dan biaya SMS."
+              : "Monthly billing summary based on transactions and SMS costs."}
           </p>
         </div>
-        <button
-          onClick={fetchSummary}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-          <RefreshCw className="h-4 w-4 mr-2" /> Muat Ulang
-        </button>
+        <div className="flex items-center space-x-4">
+          <LanguageSwitcher />
+          <button
+            onClick={fetchSummary}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <RefreshCw className="h-4 w-4 mr-2" />{" "}
+            {language === "id" ? "Muat Ulang" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Bulan
+              {t.summary.month}
             </label>
             <select
               value={month}
@@ -137,7 +162,7 @@ export default function ClientSummaryPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Tahun
+              {t.summary.year}
             </label>
             <input
               type="number"
@@ -150,18 +175,19 @@ export default function ClientSummaryPage() {
             <button
               onClick={fetchSummary}
               className="inline-flex justify-center items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-              Tampilkan
+              {language === "id" ? "Tampilkan" : "Show"}
             </button>
             <button
               onClick={exportPdf}
               className="inline-flex justify-center items-center px-4 py-2 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800">
-              <FileDown className="h-4 w-4 mr-2" /> Invoice PDF
+              <FileDown className="h-4 w-4 mr-2" />{" "}
+              {t.summary.payment.exportInvoice}
             </button>
           </div>
         </div>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Memuat...</p>}
+      {loading && <p className="text-sm text-gray-500">{t.common.loading}</p>}
 
       {message && <div className="mb-4 text-sm text-red-600">{message}</div>}
 
@@ -169,23 +195,27 @@ export default function ClientSummaryPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-500">Total SMS</p>
+              <p className="text-sm text-gray-500">
+                {t.summary.stats.totalSms}
+              </p>
               <p className="text-xl font-semibold">{data.totals.sms}</p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-500">Terkirim</p>
+              <p className="text-sm text-gray-500">{t.summary.stats.sent}</p>
               <p className="text-xl font-semibold text-green-600">
                 {data.totals.sent}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-500">Gagal</p>
+              <p className="text-sm text-gray-500">{t.summary.stats.failed}</p>
               <p className="text-xl font-semibold text-red-600">
                 {data.totals.failed}
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-500">Biaya Total (sum cost)</p>
+              <p className="text-sm text-gray-500">
+                {t.summary.stats.totalCost}
+              </p>
               <p className="text-xl font-semibold">
                 Rp {data.totals.cost.toLocaleString("id-ID")}
               </p>
@@ -196,7 +226,7 @@ export default function ClientSummaryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-500 mb-1">
-                  Total Tagihan EXC TAX
+                  {t.summary.stats.totalBilledExcTax}
                 </p>
                 <p className="text-xl font-semibold">
                   Rp {billed.toLocaleString("id-ID")}
@@ -211,14 +241,16 @@ export default function ClientSummaryPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">
-                  Terbayar Periode Ini
+                  {t.summary.stats.paidInPeriod}
                 </p>
                 <p className="text-xl font-semibold text-green-600">
                   Rp {paidInPeriod.toLocaleString("id-ID")}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Sisa Tagihan</p>
+                <p className="text-sm text-gray-500 mb-1">
+                  {t.summary.stats.outstanding}
+                </p>
                 <p className="text-xl font-semibold text-yellow-600">
                   Rp {outstanding.toLocaleString("id-ID")}
                 </p>
@@ -229,21 +261,24 @@ export default function ClientSummaryPage() {
           {/* Pembayaran */}
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-900 mb-2">
-              Bayar Tagihan Bulan Ini
+              {language === "id"
+                ? "Bayar Tagihan Bulan Ini"
+                : "Pay This Month's Bill"}
             </h3>
             <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-3 space-y-3 sm:space-y-0">
               <button
                 disabled={paying || outstanding <= 0}
                 onClick={() => pay(outstanding)}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">
-                Bayar Penuh (Rp {outstanding.toLocaleString("id-ID")})
+                {t.summary.payment.payFull} (Rp{" "}
+                {outstanding.toLocaleString("id-ID")})
               </button>
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder="Nominal parsial (Rp)"
+                  placeholder={t.summary.payment.partialAmount}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm w-52"
                 />
                 <button
@@ -252,13 +287,14 @@ export default function ClientSummaryPage() {
                   }
                   onClick={() => pay(partialAmount)}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                  Bayar Parsial
+                  {t.summary.payment.payPartial}
                 </button>
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Anda akan diarahkan ke halaman pembayaran. Status transaksi akan
-              dibuat sebagai PENDING dan diperbarui melalui notifikasi webhook.
+              {language === "id"
+                ? "Anda akan diarahkan ke halaman pembayaran. Status transaksi akan dibuat sebagai PENDING dan diperbarui melalui notifikasi webhook."
+                : "You will be redirected to the payment page. Transaction status will be created as PENDING and updated via webhook notification."}
             </p>
           </div>
         </div>
