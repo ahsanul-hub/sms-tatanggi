@@ -293,8 +293,24 @@ export async function GET(request: NextRequest) {
       return new Response("Client tidak ditemukan", { status: 404 });
     }
 
+    // Hitung data summary seperti di API summary
+    const totalSms = smsLogs.length;
+    const sentLogs = smsLogs.filter(
+      (s) => s.status === "SENT" || s.status === "DELIVERED"
+    );
+    const totalSent = sentLogs.length;
+    const totalFailed = smsLogs.filter((s) => s.status === "FAILED").length;
+    const totalCost = smsLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+    // Ambil currency dari client profile, default IDR
+    const clientCurrency = (client.clientProfile as any)?.currency || "IDR";
+    const usdToIdrRate = 16650; // Rate konversi USD ke IDR
+
+    // Hitung billed seperti di summary API
+    let billed = sentLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+    // Total tagihan selalu dalam IDR, tidak dikonversi ke USD
+
     const totalBilled = Math.abs(debitAgg._sum.amount || 0);
-    const totalCost = smsLogs.reduce((s, x) => s + (x.cost || 0), 0);
     const company =
       client.clientProfile?.companyName || client.name || "Client";
 
@@ -442,11 +458,33 @@ export async function GET(request: NextRequest) {
       xPos += colWidths[index];
     });
 
-    // Table data
-    const sentSms = smsLogs.filter((log) => log.status === "SENT");
-    const totalSent = sentSms.length;
-    const unitPrice = 500;
-    const totalAmount = totalSent * unitPrice;
+    // Table data - gunakan data yang sudah dihitung dari summary
+    const sentSms = sentLogs; // sudah dihitung di atas
+
+    // Gunakan data dari summary, bukan menghitung ulang
+    const totalAmountIdr = billed; // Total dari summary API
+    let unitPrice, totalAmount, currencySymbol;
+
+    if (clientCurrency === "USD") {
+      // Konversi dari IDR ke USD
+      unitPrice = totalAmountIdr / totalSent / usdToIdrRate; // Harga per SMS dalam USD
+      totalAmount = totalAmountIdr / usdToIdrRate; // Konversi total dari IDR ke USD
+      currencySymbol = "$";
+
+      // Debug log untuk konversi
+      console.log("Invoice USD conversion debug:", {
+        totalSent,
+        totalAmountIdr,
+        usdToIdrRate,
+        unitPriceUsd: unitPrice,
+        totalAmountUsd: totalAmount,
+      });
+    } else {
+      // Default IDR
+      unitPrice = totalAmountIdr / totalSent; // Harga per SMS dalam IDR
+      totalAmount = totalAmountIdr;
+      currencySymbol = "Rp";
+    }
 
     // Data row
     page.drawRectangle({
@@ -463,10 +501,22 @@ export async function GET(request: NextRequest) {
       `SMS Gateway, Usage ${start.format("DD MMM")} - ${end.format(
         "DD MMM YYYY"
       )}`,
-      `Rp ${unitPrice.toLocaleString("id-ID")}`,
+      `${currencySymbol} ${
+        clientCurrency === "USD"
+          ? unitPrice.toFixed(4)
+          : unitPrice.toLocaleString("id-ID")
+      }`,
       totalSent.toString(),
-      `Rp ${unitPrice.toLocaleString("id-ID")}`,
-      `Rp ${totalAmount.toLocaleString("id-ID")}`,
+      `${currencySymbol} ${
+        clientCurrency === "USD"
+          ? unitPrice.toFixed(4)
+          : unitPrice.toLocaleString("id-ID")
+      }`,
+      `${currencySymbol} ${
+        clientCurrency === "USD"
+          ? totalAmount.toFixed(4)
+          : totalAmount.toLocaleString("id-ID")
+      }`,
     ];
 
     rowData.forEach((data, index) => {
@@ -491,71 +541,138 @@ export async function GET(request: NextRequest) {
       font: boldFont,
       color: rgb(0, 0, 0),
     });
-    page.drawText(`Rp ${totalAmount.toLocaleString("id-ID")}`, {
-      x: summaryX + 100,
-      y: summaryY,
-      size: 10,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
+    page.drawText(
+      `${currencySymbol} ${
+        clientCurrency === "USD"
+          ? totalAmount.toFixed(4)
+          : totalAmount.toLocaleString("id-ID")
+      }`,
+      {
+        x: summaryX + 100,
+        y: summaryY,
+        size: 10,
+        font: font,
+        color: rgb(0, 0, 0),
+      }
+    );
 
     // DPP & PPN (sesuai ketentuan):
     // - Grand Total = Total + 11%
     // - PPN = 11% dari Total
     // - DPP Lain = Total × 11/12 (hanya ditampilkan, tidak mempengaruhi total)
-    const baseTotal = totalAmount;
-    const ppn = Math.round(baseTotal * 0.11);
-    const grandTotal = baseTotal + ppn;
-    const dppLain = Math.round((baseTotal * 11) / 12);
 
-    page.drawText("DPP Lain", {
-      x: summaryX,
-      y: summaryY - 15,
-      size: 10,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    page.drawText(`Rp ${dppLain.toLocaleString("id-ID")}`, {
-      x: summaryX + 100,
-      y: summaryY - 15,
-      size: 10,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
+    // Hitung PPN dan DPP dalam IDR dulu
+    const baseTotalIdr = totalAmountIdr;
+    const ppnIdr = Math.round(baseTotalIdr * 0.11);
+    const grandTotalIdr = baseTotalIdr + ppnIdr;
+    const dppLainIdr = Math.round((baseTotalIdr * 11) / 12);
 
-    page.drawText("PPN", {
-      x: summaryX,
-      y: summaryY - 30,
-      size: 10,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    page.drawText(`Rp ${ppn.toLocaleString("id-ID")}`, {
-      x: summaryX + 100,
-      y: summaryY - 30,
-      size: 10,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
+    // Konversi ke USD jika diperlukan
+    let baseTotal, ppn, grandTotal, dppLain;
+
+    if (clientCurrency === "USD") {
+      // Untuk USD, tidak ada DPP Lain dan PPN
+      baseTotal = totalAmount; // sudah dikonversi sebelumnya
+      ppn = 0; // Tidak ada PPN untuk USD
+      grandTotal = totalAmount; // Grand total sama dengan total untuk USD
+      dppLain = 0; // Tidak ada DPP Lain untuk USD
+    } else {
+      // Untuk IDR, tetap ada DPP Lain dan PPN
+      baseTotal = totalAmount; // sudah dalam IDR
+      ppn = ppnIdr;
+      grandTotal = grandTotalIdr;
+      dppLain = dppLainIdr;
+    }
+
+    // Hanya tampilkan DPP Lain dan PPN untuk IDR
+    if (clientCurrency !== "USD") {
+      page.drawText("DPP Lain", {
+        x: summaryX,
+        y: summaryY - 15,
+        size: 10,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(`${currencySymbol} ${dppLain.toLocaleString("id-ID")}`, {
+        x: summaryX + 100,
+        y: summaryY - 15,
+        size: 10,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+
+      page.drawText("PPN", {
+        x: summaryX,
+        y: summaryY - 30,
+        size: 10,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(`${currencySymbol} ${ppn.toLocaleString("id-ID")}`, {
+        x: summaryX + 100,
+        y: summaryY - 30,
+        size: 10,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+    }
+
+    // Tentukan posisi Grand Total berdasarkan currency
+    const grandTotalY =
+      clientCurrency === "USD" ? summaryY - 15 : summaryY - 45;
 
     page.drawText("Grand Total", {
       x: summaryX,
-      y: summaryY - 45,
+      y: grandTotalY,
       size: 10,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
-    page.drawText(`Rp ${grandTotal.toLocaleString("id-ID")}`, {
-      x: summaryX + 100,
-      y: summaryY - 45,
-      size: 10,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
+    page.drawText(
+      `${currencySymbol} ${
+        clientCurrency === "USD"
+          ? grandTotal.toFixed(4)
+          : grandTotal.toLocaleString("id-ID")
+      }`,
+      {
+        x: summaryX + 100,
+        y: grandTotalY,
+        size: 10,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      }
+    );
 
     // Amount in words
-    const englishAmount = `${numberToWordsEn(grandTotal)} Rupiah`;
-    const indonesianAmount = `${numberToWordsId(grandTotal)} Rupiah`;
+    const currencyWord = clientCurrency === "USD" ? "Dollar" : "Rupiah";
+
+    let englishAmount, indonesianAmount;
+
+    if (clientCurrency === "USD") {
+      // Untuk USD, handle desimal dengan benar
+      const dollars = Math.floor(grandTotal);
+      const cents = Math.round((grandTotal - dollars) * 100);
+
+      if (cents === 0) {
+        englishAmount = `${numberToWordsEn(dollars)} ${currencyWord}`;
+        indonesianAmount = `${numberToWordsId(dollars)} ${currencyWord}`;
+      } else {
+        englishAmount = `${numberToWordsEn(
+          dollars
+        )} ${currencyWord} and ${numberToWordsEn(cents)} Cents`;
+        indonesianAmount = `${numberToWordsId(
+          dollars
+        )} ${currencyWord} dan ${numberToWordsId(cents)} Sen`;
+      }
+    } else {
+      // Untuk IDR, tetap menggunakan Math.floor
+      englishAmount = `${numberToWordsEn(
+        Math.floor(grandTotal)
+      )} ${currencyWord}`;
+      indonesianAmount = `${numberToWordsId(
+        Math.floor(grandTotal)
+      )} ${currencyWord}`;
+    }
 
     drawInWordSection(
       page,
@@ -597,7 +714,10 @@ export async function GET(request: NextRequest) {
       ["BANK NAME", "BANK MANDIRI"],
       ["NAME", "AURA TATANGGI INVESTAMA PT"],
       ["BANK ACCOUNT", "164-00-6001031-3"],
-      ["BANK CURRENCY", "Indonesia Rupiah (IDR)"],
+      [
+        "BANK CURRENCY",
+        clientCurrency === "USD" ? "Dollar (USD)" : "Indonesia Rupiah (IDR)",
+      ],
       ["SWIFT CODE", "BMRIIDJA"],
     ];
 

@@ -15,16 +15,26 @@ export async function POST(request: NextRequest) {
     const {
       clientId,
       smsCount,
+      unitPrice = 500, // harga per SMS, default 500
       timeRange = {
         startMinutes: 0, // Default: sekarang
         endMinutes: 20, // Default: 20 menit ke depan
       },
-      failedPercentage = 0, // persentase gagal (0-100)
+      failedPercentage = 0, // persentase gagal (0-100) - legacy
+      percentages = { delivered: 80, undelivered: 20, failed: 0 }, // persentase baru
     } = body;
 
     if (!clientId || !smsCount || smsCount <= 0) {
       return NextResponse.json(
         { message: "Data tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    // Validasi unitPrice
+    if (unitPrice <= 0) {
+      return NextResponse.json(
+        { message: "Harga per SMS harus lebih dari 0" },
         { status: 400 }
       );
     }
@@ -54,16 +64,42 @@ export async function POST(request: NextRequest) {
     let failedTotal = 0;
     const smsLogs: any[] = [];
 
+    // Gunakan percentages.failed sebagai prioritas utama, fallback ke failedPercentage
+    const actualFailedPct =
+      percentages?.failed !== undefined ? percentages.failed : failedPercentage;
     const normalizedFailedPct = Math.min(
-      Math.max(Number(failedPercentage) || 0, 0),
+      Math.max(Number(actualFailedPct) || 0, 0),
       100
     );
     const targetFailed = Math.round((normalizedFailedPct / 100) * smsCount);
 
+    // Debug log
+    console.log("Generate billing debug:", {
+      percentages,
+      failedPercentage,
+      actualFailedPct,
+      normalizedFailedPct,
+      targetFailed,
+      smsCount,
+      unitPrice,
+    });
+
     const failedIndexSet = new Set<number>();
-    while (failedIndexSet.size < targetFailed) {
-      failedIndexSet.add(Math.floor(Math.random() * smsCount));
+    // Pastikan kita tidak mencoba menambahkan lebih dari smsCount
+    const maxFailed = Math.min(targetFailed, smsCount);
+    while (failedIndexSet.size < maxFailed) {
+      const randomIndex = Math.floor(Math.random() * smsCount);
+      failedIndexSet.add(randomIndex);
     }
+
+    console.log(
+      "Failed index set size:",
+      failedIndexSet.size,
+      "Target:",
+      targetFailed,
+      "Max failed:",
+      maxFailed
+    );
 
     for (let i = 0; i < smsCount; i++) {
       const randomTime = new Date(
@@ -93,13 +129,25 @@ export async function POST(request: NextRequest) {
         phoneNumber: randomPhone,
         message: `${randomMessage} - ${randomTime.toLocaleString("id-ID")}`,
         status,
-        cost: isFailed ? 0 : 500,
+        cost: isFailed ? 0 : unitPrice,
         sentAt: randomTime,
         createdAt: randomTime,
       });
     }
 
     await prisma.smsLog.createMany({ data: smsLogs });
+
+    // Verifikasi hasil
+    const actualFailed = smsLogs.filter(
+      (log) => log.status === "FAILED"
+    ).length;
+    const actualSent = smsLogs.filter((log) => log.status === "SENT").length;
+    console.log("Final verification:", {
+      actualFailed,
+      actualSent,
+      total: smsLogs.length,
+      expectedFailed: targetFailed,
+    });
 
     return NextResponse.json({
       success: true,
@@ -109,9 +157,14 @@ export async function POST(request: NextRequest) {
         sent: sentTotal,
         failed: failedTotal,
         failedPercentage: normalizedFailedPct,
-        unitPrice: 500,
-        totalCost: sentTotal * 500,
+        unitPrice: unitPrice,
+        totalCost: sentTotal * unitPrice,
         timeRange,
+        percentages: {
+          delivered: percentages?.delivered || 0,
+          undelivered: percentages?.undelivered || 0,
+          failed: percentages?.failed || 0,
+        },
       },
     });
   } catch (error) {

@@ -25,6 +25,7 @@ interface Client {
     phoneNumber: string | null;
     address: string | null;
     balance: number;
+    currency: string;
     isActive: boolean;
   };
   _count?: {
@@ -87,6 +88,37 @@ export default function AdminClientsPage() {
       }
     } catch (error) {
       console.error("Error toggling client status:", error);
+    }
+  };
+
+  const updateClientCurrency = async (clientId: string, currency: string) => {
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: clientId, currency }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setClients((prev) =>
+          prev.map((client) =>
+            client.id === clientId
+              ? {
+                  ...client,
+                  clientProfile: {
+                    ...client.clientProfile,
+                    currency,
+                  },
+                }
+              : client
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error updating client currency:", error);
     }
   };
 
@@ -282,7 +314,10 @@ export default function AdminClientsPage() {
                         <div className="mt-1 flex items-center text-sm text-gray-500">
                           <DollarSign className="h-4 w-4 mr-1" />
                           <p>
-                            Saldo: Rp{" "}
+                            Saldo:{" "}
+                            {client.clientProfile.currency === "USD"
+                              ? "$"
+                              : "Rp"}{" "}
                             {client.clientProfile.balance.toLocaleString(
                               "id-ID"
                             )}
@@ -291,6 +326,16 @@ export default function AdminClientsPage() {
                           <p>Transaksi: {client._count?.transactions || 0}</p>
                           <span className="mx-2">•</span>
                           <p>SMS: {client._count?.smsLogs || 0}</p>
+                          <span className="mx-2">•</span>
+                          <select
+                            value={client.clientProfile.currency}
+                            onChange={(e) =>
+                              updateClientCurrency(client.id, e.target.value)
+                            }
+                            className="text-xs border border-gray-300 rounded px-1 py-0.5 bg-white">
+                            <option value="IDR">IDR</option>
+                            <option value="USD">USD</option>
+                          </select>
                         </div>
                       </div>
                     </div>

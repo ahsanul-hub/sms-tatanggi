@@ -22,17 +22,23 @@ export async function GET(request: NextRequest) {
     );
     const end = start.endOf("month");
 
-    // Ambil SMS logs bulan tersebut
-    const smsLogs = await prisma.smsLog.findMany({
-      where: {
-        userId: session.user.id,
-        createdAt: {
-          gte: start.toDate(),
-          lte: end.toDate(),
+    // Ambil SMS logs bulan tersebut dan client profile
+    const [smsLogs, client] = await Promise.all([
+      prisma.smsLog.findMany({
+        where: {
+          userId: session.user.id,
+          createdAt: {
+            gte: start.toDate(),
+            lte: end.toDate(),
+          },
         },
-      },
-      select: { id: true, status: true, cost: true },
-    });
+        select: { id: true, status: true, cost: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: { clientProfile: true },
+      }),
+    ]);
 
     const totalSms = smsLogs.length;
     const sentLogs = smsLogs.filter(
@@ -41,6 +47,10 @@ export async function GET(request: NextRequest) {
     const totalSent = sentLogs.length;
     const totalFailed = smsLogs.filter((s) => s.status === "FAILED").length;
     const totalCost = smsLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+    // Ambil currency dari client profile, default IDR
+    const clientCurrency = (client?.clientProfile as any)?.currency || "IDR";
+    const usdToIdrRate = 16650; // Rate konversi USD ke IDR
 
     // Ambil transaksi DEBIT bulan tersebut (tagihan) hanya sebagai referensi historis
     const billingAgg = await prisma.transaction.aggregate({
@@ -55,7 +65,10 @@ export async function GET(request: NextRequest) {
     const billedFromTransactions = Math.abs(billingAgg._sum.amount || 0);
 
     // Billed utama: mendukung harga per SMS berbeda, jumlahkan cost SMS terkirim
-    const billed = sentLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+    let billed = sentLogs.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+    // Total tagihan selalu dalam IDR, tidak dikonversi ke USD
+    // Currency USD hanya untuk display di invoice, bukan untuk perhitungan tagihan
 
     // Pembayaran berhasil pada periode (PAYMENT COMPLETED)
     const paidAgg = await prisma.transaction.aggregate({
@@ -67,7 +80,11 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true },
     });
-    const paidInPeriod = paidAgg._sum.amount || 0;
+    let paidInPeriod = paidAgg._sum.amount || 0;
+
+    // Pembayaran juga selalu dalam IDR, tidak dikonversi ke USD
+    // Currency USD hanya untuk display di invoice, bukan untuk perhitungan pembayaran
+
     const outstanding = Math.max(billed - paidInPeriod, 0);
 
     return NextResponse.json({
@@ -77,6 +94,7 @@ export async function GET(request: NextRequest) {
         start: start.toISOString(),
         end: end.toISOString(),
       },
+      currency: clientCurrency,
       totals: {
         sms: totalSms,
         sent: totalSent,

@@ -146,6 +146,10 @@ export default function GenerateBillingPage() {
         timeRange: { startMinutes, endMinutes },
       };
 
+      // Debug log
+      console.log("Frontend request data:", requestData);
+      console.log("Billing data state:", billingData);
+
       const response = await fetch("/api/admin/generate-billing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
