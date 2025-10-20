@@ -514,7 +514,7 @@ export async function GET(request: NextRequest) {
       }`,
       `${currencySymbol} ${
         clientCurrency === "USD"
-          ? totalAmount.toFixed(4)
+          ? totalAmount.toFixed(2)
           : totalAmount.toLocaleString("id-ID")
       }`,
     ];
@@ -544,7 +544,7 @@ export async function GET(request: NextRequest) {
     page.drawText(
       `${currencySymbol} ${
         clientCurrency === "USD"
-          ? totalAmount.toFixed(4)
+          ? totalAmount.toFixed(2)
           : totalAmount.toLocaleString("id-ID")
       }`,
       {
@@ -631,7 +631,7 @@ export async function GET(request: NextRequest) {
     page.drawText(
       `${currencySymbol} ${
         clientCurrency === "USD"
-          ? grandTotal.toFixed(4)
+          ? grandTotal.toFixed(2)
           : grandTotal.toLocaleString("id-ID")
       }`,
       {
