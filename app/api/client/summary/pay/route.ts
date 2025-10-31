@@ -28,14 +28,14 @@ export async function POST(request: NextRequest) {
       month,
       year,
       amount,
-      customer_name,
-      email,
-      phone_number,
-      address,
-      city,
-      province_state,
-      country,
-      postal_code,
+      // customer_name,
+      // email,
+      // phone_number,
+      // address,
+      // city,
+      // province_state,
+      // country,
+      // postal_code,
     } = await request.json();
     if (!amount || amount <= 0) {
       return NextResponse.json(
@@ -97,18 +97,17 @@ export async function POST(request: NextRequest) {
     // SUSUN PAYLOAD FINAL dengan urutan key yang konsisten (sesuai contoh curl)
     const userIdField = dbUser?.email || session.user.email || session.user.id;
     const userMdnField = dbUser?.clientProfile?.phoneNumber || userIdField;
-    const customerName =
-      customer_name || dbUser?.name || session.user.name || "Client";
+    const customerName = dbUser?.name || session.user.name || "Client";
 
-    // Parse phone number to separate country code and number
-    const phoneParts = phone_number ? phone_number.split(" ") : ["+62", ""];
-    const countryCode = phoneParts[0] || "+62";
-    const phoneNumber = phoneParts.slice(1).join(" ") || "";
+    // // Parse phone number to separate country code and number
+    // const phoneParts = phone_number ? phone_number.split(" ") : ["+62", ""];
+    // const countryCode = phoneParts[0] || "+62";
+    // const phoneNumber = phoneParts.slice(1).join(" ") || "";
 
-    console.log("🔍 PHONE PARSING DEBUG:");
-    console.log("  Input:", phone_number);
-    console.log("  → countryCode:", countryCode);
-    console.log("  → phoneNumber:", phoneNumber);
+    // console.log("🔍 PHONE PARSING DEBUG:");
+    // console.log("  Input:", phone_number);
+    // console.log("  → countryCode:", countryCode);
+    // console.log("  → phoneNumber:", phoneNumber);
 
     const requestBodyObj: Record<string, any> = {
       redirect_url: redirectUrl,
@@ -120,23 +119,23 @@ export async function POST(request: NextRequest) {
       amount: amount,
       item_name: "SMS Billing",
       customer_name: customerName,
-      email: email || session.user.email,
-      country_code: countryCode,
-      phone_number: phoneNumber,
-      address: address || "",
-      city: city || "",
-      province_state: province_state || "",
-      country: country || "Indonesia",
-      postal_code: postal_code || "",
+      // email: email || session.user.email,
+      // country_code: countryCode,
+      // phone_number: phoneNumber,
+      // address: address || "",
+      // city: city || "",
+      // province_state: province_state || "",
+      // country: country || "Indonesia",
+      // postal_code: postal_code || "",
       notification_url: notifyUrl,
     };
 
     // Stringify tanpa escape slash (kemudian normalisasi sebelum sign)
     const requestBodyJson = JSON.stringify(requestBodyObj);
-    console.log("📤 PAYMENT GATEWAY PAYLOAD:");
-    console.log("  phone_number:", requestBodyObj.phone_number);
-    console.log("  country_code:", requestBodyObj.country_code);
-    console.log("bodyjson", requestBodyJson);
+    // console.log("📤 PAYMENT GATEWAY PAYLOAD:");
+    // console.log("  phone_number:", requestBodyObj.phone_number);
+    // console.log("  country_code:", requestBodyObj.country_code);
+    // console.log("bodyjson", requestBodyJson);
     const bodysign = toBodySignFromJson(requestBodyJson, appsecret);
 
     const resp = await fetch(`${baseUrl}/api/transaction`, {
@@ -185,11 +184,11 @@ export async function POST(request: NextRequest) {
         referenceId: transaction.referenceId,
         status: transaction.status,
       },
-      parsedData: {
-        countryCode,
-        phoneNumber,
-        originalPhoneNumber: phone_number,
-      },
+      // parsedData: {
+      //   countryCode,
+      //   phoneNumber,
+      //   originalPhoneNumber: phone_number,
+      // },
     });
   } catch (e) {
     console.error("Client pay summary error:", e);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
-import { FileDown, RefreshCw } from "lucide-react";
+import { FileDown, RefreshCw, Copy, Link } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -30,18 +30,19 @@ export default function ClientSummaryPage() {
   const [paying, setPaying] = useState(false);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [message, setMessage] = useState<string>("");
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
-  const [customerData, setCustomerData] = useState({
-    customer_name: "",
-    email: "",
-    phone_number: "",
-    address: "",
-    city: "",
-    province_state: "",
-    country: "",
-    postal_code: "",
-  });
+  // const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  // const [copySuccess, setCopySuccess] = useState<string>("");
+  // const [customerData, setCustomerData] = useState({
+  //   customer_name: "",
+  //   email: "",
+  //   phone_number: "",
+  //   address: "",
+  //   city: "",
+  //   province_state: "",
+  //   country: "",
+  //   postal_code: "",
+  // });
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -70,26 +71,26 @@ export default function ClientSummaryPage() {
     );
   };
 
-  const openPaymentModal = (amount: number) => {
-    setPaymentAmount(amount);
-    setShowPaymentModal(true);
-  };
+  // const openPaymentModal = (amount: number) => {
+  //   setPaymentAmount(amount);
+  //   setShowPaymentModal(true);
+  // };
 
-  const pay = async () => {
+  const pay = async (amount: number) => {
     try {
       setPaying(true);
       setMessage("");
-      const payload = {
-        month,
-        year,
-        amount: paymentAmount,
-        ...customerData,
-      };
+      // const payload = {
+      //   month,
+      //   year,
+      //   amount: paymentAmount,
+      //   ...customerData,
+      // };
 
       const res = await fetch("/api/client/summary/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ month, year, amount }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -99,13 +100,78 @@ export default function ClientSummaryPage() {
       // console.log(json);
       // Buka tab baru untuk payment
       window.open(json.paymentUrl, "_blank");
-      setShowPaymentModal(false);
+      // setShowPaymentModal(false);
     } catch (e) {
       setMessage("Terjadi kesalahan saat membuat pembayaran");
     } finally {
       setPaying(false);
     }
   };
+
+  const redirectToPaymentPage = (amount: number) => {
+    const params = new URLSearchParams({
+      amount: amount.toString(),
+      month: month.toString(),
+      year: year.toString(),
+      description: `Pembayaran tagihan ${month}/${year}`,
+    });
+    window.location.href = `/payment?${params.toString()}`;
+  };
+
+  // Quick pay: langsung buat payment link tanpa input data customer
+  const quickPay = async (amount: number) => {
+    try {
+      setPaying(true);
+      setMessage("");
+      const payload = { month, year, amount };
+      const res = await fetch("/api/client/summary/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMessage(json?.message || "Gagal membuat pembayaran");
+        return;
+      }
+      if (json?.paymentUrl) {
+        window.open(json.paymentUrl, "_blank");
+      }
+    } catch (e) {
+      setMessage("Terjadi kesalahan saat membuat pembayaran");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const generatePaymentLink = (amount: number) => {
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams({
+      amount: amount.toString(),
+      month: month.toString(),
+      year: year.toString(),
+      description: `Pembayaran tagihan ${month}/${year}`,
+    });
+    return `${baseUrl}/payment?${params.toString()}`;
+  };
+
+  // const copyPaymentLink = async (amount: number) => {
+  //   try {
+  //     const link = generatePaymentLink(amount);
+  //     await navigator.clipboard.writeText(link);
+  //     setCopySuccess(
+  //       language === "id"
+  //         ? "Link berhasil disalin!"
+  //         : "Link copied successfully!"
+  //     );
+  //     setTimeout(() => setCopySuccess(""), 3000);
+  //   } catch (err) {
+  //     setCopySuccess(
+  //       language === "id" ? "Gagal menyalin link" : "Failed to copy link"
+  //     );
+  //     setTimeout(() => setCopySuccess(""), 3000);
+  //   }
+  // };
 
   const months =
     language === "id"
@@ -290,43 +356,73 @@ export default function ClientSummaryPage() {
                 ? "Bayar Tagihan Bulan Ini"
                 : "Pay This Month's Bill"}
             </h3>
-            <div className="flex flex-col sm:flex-row sm:items-end sm:space-x-3 space-y-3 sm:space-y-0">
-              <button
-                disabled={paying || outstanding <= 0}
-                onClick={() => openPaymentModal(outstanding)}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">
-                {t.summary.payment.payFull} (Rp{" "}
-                {outstanding.toLocaleString("id-ID")})
-              </button>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder={t.summary.payment.partialAmount}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm w-52"
-                />
+            <div className="space-y-4">
+              {/* Bayar Penuh */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-2 sm:space-y-0">
                 <button
+                  disabled={paying || outstanding <= 0}
+                  onClick={() => quickPay(outstanding)}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">
+                  {t.summary.payment.payFull} (Rp{" "}
+                  {outstanding.toLocaleString("id-ID")})
+                </button>
+                {/* <button
+                  disabled={paying || outstanding <= 0}
+                  onClick={() => copyPaymentLink(outstanding)}
+                  className="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50">
+                  <Copy className="h-4 w-4 mr-2" />
+                  {language === "id" ? "Copy Link" : "Copy Link"}
+                </button> */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-2 sm:space-y-0">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      placeholder={t.summary.payment.partialAmount}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm w-52"
+                    />
+                    <button
+                      disabled={
+                        paying ||
+                        partialAmount <= 0 ||
+                        partialAmount > outstanding
+                      }
+                      onClick={() => quickPay(partialAmount)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                      {t.summary.payment.payPartial}
+                    </button>
+                  </div>
+                  {/* <button
                   disabled={
                     paying || partialAmount <= 0 || partialAmount > outstanding
                   }
-                  onClick={() => openPaymentModal(partialAmount)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                  {t.summary.payment.payPartial}
-                </button>
+                  onClick={() => copyPaymentLink(partialAmount)}
+                  className="inline-flex items-center px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50">
+                  <Copy className="h-4 w-4 mr-2" />
+                  {language === "id" ? "Copy Link" : "Copy Link"}
+                </button> */}
+                </div>
               </div>
+
+              {/* Bayar Sebagian */}
             </div>
+            {/* {copySuccess && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-600">{copySuccess}</p>
+              </div>
+            )} */}
             <p className="text-xs text-gray-500 mt-2">
               {language === "id"
-                ? "Anda akan diarahkan ke halaman pembayaran. Status transaksi akan dibuat sebagai PENDING dan diperbarui melalui notifikasi webhook."
-                : "You will be redirected to the payment page. Transaction status will be created as PENDING and updated via webhook notification."}
+                ? "Anda akan diarahkan ke halaman pembayaran khusus untuk mengisi data customer dan melanjutkan ke payment gateway. Atau gunakan tombol Copy Link untuk membagikan link pembayaran."
+                : "You will be redirected to a dedicated payment page to fill customer data and continue to payment gateway. Or use the Copy Link button to share the payment link."}
             </p>
           </div>
         </div>
       )}
 
       {/* Payment Modal */}
-      {showPaymentModal && (
+      {/* {showPaymentModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
@@ -394,7 +490,6 @@ export default function ClientSummaryPage() {
                           });
                         }}
                         className="w-28 px-2 py-2 border border-gray-300 rounded-l-md text-sm bg-gray-50 border-r-0 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        {/* Asia Pacific */}
                         <option value="+62">🇮🇩 +62</option>
                         <option value="+86">🇨🇳 +86</option>
                         <option value="+91">🇮🇳 +91</option>
@@ -437,7 +532,6 @@ export default function ClientSummaryPage() {
                         <option value="+683">🇳🇺 +683</option>
                         <option value="+680">🇵🇼 +680</option>
 
-                        {/* Europe */}
                         <option value="+44">🇬🇧 +44</option>
                         <option value="+33">🇫🇷 +33</option>
                         <option value="+49">🇩🇪 +49</option>
@@ -482,7 +576,6 @@ export default function ClientSummaryPage() {
                         <option value="+356">🇲🇹 +356</option>
                         <option value="+357">🇨🇾 +357</option>
 
-                        {/* Americas */}
                         <option value="+1">🇺🇸 +1</option>
                         <option value="+1">🇨🇦 +1</option>
                         <option value="+52">🇲🇽 +52</option>
@@ -541,7 +634,6 @@ export default function ClientSummaryPage() {
                         <option value="+1">🇨🇷 +1</option>
                         <option value="+1">🇵🇦 +1</option>
 
-                        {/* Middle East & Africa */}
                         <option value="+971">🇦🇪 +971</option>
                         <option value="+966">🇸🇦 +966</option>
                         <option value="+965">🇰🇼 +965 Kuwait</option>
@@ -899,7 +991,7 @@ export default function ClientSummaryPage() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
