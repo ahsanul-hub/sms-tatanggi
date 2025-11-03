@@ -7,8 +7,7 @@ export async function GET(request: NextRequest) {
 
     // Ambil hanya 4 atau 6 digit pertama dari input kartu
     let bin = "";
-    if (raw.length >= 6) bin = raw.slice(0, 6);
-    else if (raw.length >= 4) bin = raw.slice(0, 4);
+    bin = raw.slice(0, 4);
 
     if (!bin) {
       return NextResponse.json(
