@@ -17,8 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const baseUrl =
-      process.env.REDISION_NEW_BASE_URL || "http://localhost:4000";
+    const baseUrl = process.env.REDISION_BASE_URL || "http://localhost:4000";
     const appkey = process.env.REDISION_APPKEY || "";
     const appid = process.env.REDISION_APPID || "";
 
