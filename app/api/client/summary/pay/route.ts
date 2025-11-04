@@ -174,6 +174,13 @@ export async function POST(request: NextRequest) {
       data?.data?.payment_url ||
       data?.data?.redirect_url;
 
+    if (paymentUrl) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { paymentUrl } as any,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       paymentUrl,

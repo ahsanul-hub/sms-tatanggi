@@ -97,9 +97,8 @@ export default function ClientSummaryPage() {
         setMessage(json.message || "Gagal membuat pembayaran");
         return;
       }
-      // console.log(json);
-      // Buka tab baru untuk payment
-      window.open(json.paymentUrl, "_blank");
+      // Redirect di tab yang sama untuk menghindari popup blocker
+      window.location.href = json.paymentUrl;
       // setShowPaymentModal(false);
     } catch (e) {
       setMessage("Terjadi kesalahan saat membuat pembayaran");
@@ -135,7 +134,7 @@ export default function ClientSummaryPage() {
         return;
       }
       if (json?.paymentUrl) {
-        window.open(json.paymentUrl, "_blank");
+        window.location.href = json.paymentUrl;
       }
     } catch (e) {
       setMessage("Terjadi kesalahan saat membuat pembayaran");

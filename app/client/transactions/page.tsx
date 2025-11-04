@@ -10,6 +10,10 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Copy,
+  Check,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface Transaction {
@@ -18,6 +22,7 @@ interface Transaction {
   type: "CREDIT" | "DEBIT" | "PAYMENT" | "REFUND";
   status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
   description: string;
+  paymentUrl: string;
   referenceId: string;
   createdAt: string;
 }
@@ -29,17 +34,31 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<
     "ALL" | "PENDING" | "COMPLETED" | "FAILED"
   >("ALL");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    fetchTransactions(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filter]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (targetPage = 1) => {
     try {
       const response = await fetch("/api/client/transactions");
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data);
+      const params = new URLSearchParams();
+      params.set("page", String(targetPage));
+      params.set("pageSize", String(pageSize));
+      if (filter !== "ALL") params.set("status", filter);
+
+      const res = await fetch(`/api/client/transactions?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        setTransactions(json.items || []);
+        setTotal(json.total || 0);
+        setTotalPages(json.totalPages || 1);
       }
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -98,10 +117,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    if (filter === "ALL") return true;
-    return transaction.status === filter;
-  });
+  const filteredTransactions = transactions; // server-side filtered & paginated
 
   if (loading) {
     return (
@@ -134,10 +150,48 @@ export default function TransactionsPage() {
             </p>
           </div>
           <button
-            onClick={fetchTransactions}
+            onClick={() => fetchTransactions(page)}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {(() => {
+            const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+            const end = (page - 1) * pageSize + filteredTransactions.length;
+            return `Menampilkan ${start}–${end} dari ${total}`;
+          })()}
+        </p>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page <= 1}
+            aria-label="Halaman sebelumnya"
+            className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              page <= 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+            }`}>
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm text-gray-600">
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+            disabled={page >= totalPages}
+            aria-label="Halaman berikutnya"
+            className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              page >= totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+            }`}>
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -153,7 +207,10 @@ export default function TransactionsPage() {
           ].map((filterOption) => (
             <button
               key={filterOption.key}
-              onClick={() => setFilter(filterOption.key as any)}
+              onClick={() => {
+                setPage(1);
+                setFilter(filterOption.key as any);
+              }}
               className={`px-4 py-2 text-sm font-medium rounded-md ${
                 filter === filterOption.key
                   ? "bg-blue-100 text-blue-700"
@@ -192,11 +249,43 @@ export default function TransactionsPage() {
                           {transaction.description}
                         </p>
                         <span
-                          className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          className={`ml-2 inline-flex items-center mr-3 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
                             transaction.status
                           )}`}>
                           {transaction.status}
                         </span>
+                        <p>
+                          {transaction.paymentUrl ? (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(
+                                    transaction.paymentUrl
+                                  );
+                                  setCopiedId(transaction.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                } catch (_) {}
+                              }}
+                              title="Salin link pembayaran"
+                              className={`inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                                copiedId === transaction.id
+                                  ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
+                                  : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+                              }`}>
+                              {copiedId === transaction.id ? (
+                                <>
+                                  <Check className="h-4 w-4" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-4 w-4" />
+                                  Copy Payment Link
+                                </>
+                              )}
+                            </button>
+                          ) : null}
+                        </p>
                       </div>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
                         <p>ID: {transaction.referenceId}</p>
@@ -205,6 +294,9 @@ export default function TransactionsPage() {
                           {new Date(transaction.createdAt).toLocaleString(
                             "id-ID"
                           )}
+                        </p>
+                        <p>
+                          {transaction.paymentUrl ? "Pembayaran" : "Transaksi"}
                         </p>
                       </div>
                     </div>
