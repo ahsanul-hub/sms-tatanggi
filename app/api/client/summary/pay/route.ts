@@ -200,7 +200,8 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error("Client pay summary error:", e);
     return NextResponse.json(
-      { message: "Terjadi kesalahan server" },
+      { message: "Terjadi kesalahan server", error: e },
+
       { status: 500 }
     );
   }
