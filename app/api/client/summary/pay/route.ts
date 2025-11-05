@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     if (paymentUrl) {
       await prisma.transaction.update({
         where: { id: transaction.id },
-        data: { paymentUrl } as any,
+        data: { paymentUrl },
       });
     }
 
