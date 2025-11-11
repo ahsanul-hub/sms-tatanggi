@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkPivotPaymentStatus } from "@/lib/pivot-payment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,9 +69,54 @@ export async function POST(request: NextRequest) {
 
     if (channelTransactionId) {
       updateData.chanelTrxId = channelTransactionId;
+
+      // Check payment status dari Pivot Payment API jika ada chanelTrxId
+      try {
+        const pivotStatus = await checkPivotPaymentStatus(channelTransactionId);
+        if (pivotStatus) {
+          // Update status berdasarkan response dari Pivot Payment
+          const pivotStatusUpper = pivotStatus.status.toUpperCase();
+          if (
+            pivotStatusUpper === "COMPLETED" ||
+            pivotStatusUpper === "SUCCESS" ||
+            pivotStatusUpper === "PAID"
+          ) {
+            newStatus = "COMPLETED";
+          } else if (
+            pivotStatusUpper === "FAILED" ||
+            pivotStatusUpper === "CANCELLED" ||
+            pivotStatusUpper === "EXPIRED"
+          ) {
+            newStatus = "FAILED";
+          }
+
+          // Simpan failure info jika ada
+          if (pivotStatus.failureCode) {
+            updateData.failureCode = pivotStatus.failureCode;
+          }
+          if (pivotStatus.failureMessage) {
+            updateData.failureMessage = pivotStatus.failureMessage;
+          }
+
+          // Simpan paymentUrl jika ada
+          if (pivotStatus.paymentUrl) {
+            updateData.paymentUrl = pivotStatus.paymentUrl;
+          }
+
+          // Update status dengan status dari Pivot Payment
+          updateData.status = newStatus;
+        }
+      } catch (error) {
+        console.error("Error checking Pivot Payment status:", error);
+        // Continue dengan update data yang sudah ada
+      }
     }
 
-    if (newStatus === "COMPLETED" && notifyPaymentUrl) {
+    if (
+      newStatus === "COMPLETED" &&
+      notifyPaymentUrl &&
+      !updateData.paymentUrl
+    ) {
       updateData.paymentUrl = notifyPaymentUrl;
     }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useLanguage } from "@/lib/language-context";
 import {
   CreditCard,
   ArrowUpRight,
@@ -20,7 +21,10 @@ interface Transaction {
   type: "CREDIT" | "DEBIT" | "PAYMENT" | "REFUND";
   status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
   description: string;
-  referenceId: string;
+  referenceId?: string;
+  chanelTrxId?: string;
+  failureCode?: string;
+  failureMessage?: string;
   createdAt: string;
   user: {
     id: string;
@@ -34,8 +38,10 @@ interface Transaction {
 
 export default function AdminTransactionsPage() {
   const { data: session } = useSession();
+  const { t, language } = useLanguage();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [filter, setFilter] = useState<
     "ALL" | "PENDING" | "COMPLETED" | "FAILED"
   >("ALL");
@@ -112,6 +118,45 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  const checkPaymentStatus = async (transactionId: string) => {
+    try {
+      setCheckingStatus(transactionId);
+      const res = await fetch("/api/payment/check-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(
+          json.message ||
+            (language === "id"
+              ? "Gagal mengecek status pembayaran"
+              : "Failed to check payment status")
+        );
+        return;
+      }
+
+      // Refresh transactions setelah check status
+      await fetchTransactions();
+      alert(
+        language === "id"
+          ? "Status pembayaran berhasil diperbarui"
+          : "Payment status updated"
+      );
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      alert(
+        language === "id"
+          ? "Terjadi kesalahan saat mengecek status pembayaran"
+          : "An error occurred while checking payment status"
+      );
+    } finally {
+      setCheckingStatus(null);
+    }
+  };
+
   const filteredTransactions = transactions.filter((transaction) => {
     const statusMatch = filter === "ALL" || transaction.status === filter;
     const typeMatch = typeFilter === "ALL" || transaction.type === typeFilter;
@@ -150,17 +195,19 @@ export default function AdminTransactionsPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Transaksi Admin
+              {language === "id" ? "Transaksi Admin" : "Admin Transactions"}
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Monitor semua transaksi dari semua klien
+              {language === "id"
+                ? "Monitor semua transaksi dari semua klien"
+                : "Monitor all clients' transactions"}
             </p>
           </div>
           <button
             onClick={fetchTransactions}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t.common.refresh}
           </button>
         </div>
       </div>
@@ -269,14 +316,41 @@ export default function AdminTransactionsPage() {
                             )}`}>
                             {transaction.status}
                           </span>
+                          {transaction.chanelTrxId && (
+                            <button
+                              onClick={() => checkPaymentStatus(transaction.id)}
+                              disabled={checkingStatus === transaction.id}
+                              title="Cek status pembayaran dari payment gateway"
+                              className={`ml-2 inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                                checkingStatus === transaction.id
+                                  ? "bg-gray-400 text-white cursor-not-allowed"
+                                  : "bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500"
+                              }`}>
+                              {checkingStatus === transaction.id ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  Checking...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3 w-3" />
+                                  Check Status
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                         <div className="mt-1 flex items-center text-sm text-gray-500">
                           <p>
                             Klien: {transaction.user.clientProfile.companyName}{" "}
                             ({transaction.user.name})
                           </p>
-                          <span className="mx-2">•</span>
-                          <p>ID: {transaction.referenceId}</p>
+                          {transaction.referenceId && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <p>ID: {transaction.referenceId}</p>
+                            </>
+                          )}
                           <span className="mx-2">•</span>
                           <p>
                             {new Date(transaction.createdAt).toLocaleString(
@@ -284,6 +358,21 @@ export default function AdminTransactionsPage() {
                             )}
                           </p>
                         </div>
+                        {(transaction.failureCode ||
+                          transaction.failureMessage) && (
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                            {transaction.failureCode && (
+                              <p className="text-xs font-medium text-red-800">
+                                Error Code: {transaction.failureCode}
+                              </p>
+                            )}
+                            {transaction.failureMessage && (
+                              <p className="text-xs text-red-700 mt-1">
+                                {transaction.failureMessage}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center">

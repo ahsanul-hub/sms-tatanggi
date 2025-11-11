@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useLanguage } from "@/lib/language-context";
 import {
   CreditCard,
   ArrowUpRight,
@@ -22,19 +23,24 @@ interface Transaction {
   type: "CREDIT" | "DEBIT" | "PAYMENT" | "REFUND";
   status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
   description: string;
-  paymentUrl: string;
-  referenceId: string;
+  paymentUrl?: string;
+  referenceId?: string;
+  chanelTrxId?: string;
+  failureCode?: string;
+  failureMessage?: string;
   createdAt: string;
 }
 
 export default function TransactionsPage() {
   const { data: session } = useSession();
+  const { t, language } = useLanguage();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<
     "ALL" | "PENDING" | "COMPLETED" | "FAILED"
   >("ALL");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -117,6 +123,45 @@ export default function TransactionsPage() {
     }
   };
 
+  const checkPaymentStatus = async (transactionId: string) => {
+    try {
+      setCheckingStatus(transactionId);
+      const res = await fetch("/api/payment/check-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(
+          json.message ||
+            (language === "id"
+              ? "Gagal mengecek status pembayaran"
+              : "Failed to check payment status")
+        );
+        return;
+      }
+
+      // Refresh transactions setelah check status
+      await fetchTransactions(page);
+      alert(
+        language === "id"
+          ? "Status pembayaran berhasil diperbarui"
+          : "Payment status updated"
+      );
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      alert(
+        language === "id"
+          ? "Terjadi kesalahan saat mengecek status pembayaran"
+          : "An error occurred while checking payment status"
+      );
+    } finally {
+      setCheckingStatus(null);
+    }
+  };
+
   const filteredTransactions = transactions; // server-side filtered & paginated
 
   if (loading) {
@@ -143,17 +188,19 @@ export default function TransactionsPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Riwayat Transaksi
+              {t.transactions.title}
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Lihat semua transaksi dan pembayaran Anda
+              {language === "id"
+                ? "Lihat semua transaksi dan pembayaran Anda"
+                : "View all your transactions and payments"}
             </p>
           </div>
           <button
             onClick={() => fetchTransactions(page)}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t.common.refresh}
           </button>
         </div>
       </div>
@@ -254,16 +301,18 @@ export default function TransactionsPage() {
                           )}`}>
                           {transaction.status}
                         </span>
-                        <p>
-                          {transaction.paymentUrl ? (
+                        <div className="flex items-center gap-2">
+                          {transaction.paymentUrl && (
                             <button
                               onClick={async () => {
                                 try {
-                                  await navigator.clipboard.writeText(
-                                    transaction.paymentUrl
-                                  );
-                                  setCopiedId(transaction.id);
-                                  setTimeout(() => setCopiedId(null), 2000);
+                                  if (transaction.paymentUrl) {
+                                    await navigator.clipboard.writeText(
+                                      transaction.paymentUrl
+                                    );
+                                    setCopiedId(transaction.id);
+                                    setTimeout(() => setCopiedId(null), 2000);
+                                  }
                                 } catch (_) {}
                               }}
                               title="Salin link pembayaran"
@@ -275,30 +324,81 @@ export default function TransactionsPage() {
                               {copiedId === transaction.id ? (
                                 <>
                                   <Check className="h-4 w-4" />
-                                  Copied
+                                  {language === "id" ? "Disalin" : "Copied"}
                                 </>
                               ) : (
                                 <>
                                   <Copy className="h-4 w-4" />
-                                  Copy Payment Link
+                                  {language === "id"
+                                    ? "Salin Link Pembayaran"
+                                    : "Copy Payment Link"}
                                 </>
                               )}
                             </button>
-                          ) : null}
-                        </p>
+                          )}
+                          {transaction.chanelTrxId && (
+                            <button
+                              onClick={() => checkPaymentStatus(transaction.id)}
+                              disabled={checkingStatus === transaction.id}
+                              title="Cek status pembayaran dari payment gateway"
+                              className={`inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                                checkingStatus === transaction.id
+                                  ? "bg-gray-400 text-white cursor-not-allowed"
+                                  : "bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500"
+                              }`}>
+                              {checkingStatus === transaction.id ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                  {language === "id"
+                                    ? "Memeriksa..."
+                                    : "Checking..."}
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4" />
+                                  {language === "id"
+                                    ? "Cek Status"
+                                    : "Check Status"}
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
-                        <p>ID: {transaction.referenceId}</p>
-                        <span className="mx-2">•</span>
+                        {transaction.referenceId && (
+                          <>
+                            <p>ID: {transaction.referenceId}</p>
+                            <span className="mx-2">•</span>
+                          </>
+                        )}
                         <p>
                           {new Date(transaction.createdAt).toLocaleString(
                             "id-ID"
                           )}
                         </p>
-                        <p>
-                          {transaction.paymentUrl ? "Pembayaran" : "Transaksi"}
-                        </p>
+                        {transaction.paymentUrl && (
+                          <>
+                            <span className="mx-2">•</span>
+                            <p>Pembayaran</p>
+                          </>
+                        )}
                       </div>
+                      {(transaction.failureCode ||
+                        transaction.failureMessage) && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                          {transaction.failureCode && (
+                            <p className="text-xs font-medium text-red-800">
+                              Error Code: {transaction.failureCode}
+                            </p>
+                          )}
+                          {transaction.failureMessage && (
+                            <p className="text-xs text-red-700 mt-1">
+                              {transaction.failureMessage}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center">
