@@ -8,8 +8,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const referenceId =
-      body?.merchant_transaction_id || body?.reference_id || body?.referenceId;
+    const referenceId = body?.merchant_transaction_id;
+    const channelTransactionId = body?.reference_id;
 
     if (!referenceId) {
       return NextResponse.json(
@@ -65,6 +65,10 @@ export async function POST(request: NextRequest) {
           ? `${tx.description} | ${extraInfo.join(" ")}`
           : tx.description,
     };
+
+    if (channelTransactionId) {
+      updateData.chanelTrxId = channelTransactionId;
+    }
 
     if (newStatus === "COMPLETED" && notifyPaymentUrl) {
       updateData.paymentUrl = notifyPaymentUrl;
