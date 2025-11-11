@@ -292,7 +292,7 @@ export default function TransactionsPage() {
                     </div>
                     <div className="ml-4">
                       <div className="flex items-center">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium max-w-2xl text-gray-900">
                           {transaction.description}
                         </p>
                         <span
