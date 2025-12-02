@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -11,7 +13,47 @@ export async function GET() {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const smsLogs = await prisma.smsLog.findMany({
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const clientId = searchParams.get("clientId");
+
+    console.log("SMS Logs Filter Input:", {
+      startDate,
+      endDate,
+      clientId,
+      url: request.url,
+    });
+
+    const where: any = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        where.createdAt = {
+          gte: start,
+          lte: new Date(end.setHours(23, 59, 59, 999)),
+        };
+      } else {
+        console.error("Invalid date format:", { startDate, endDate });
+      }
+    }
+
+    if (
+      clientId &&
+      clientId !== "ALL" &&
+      clientId !== "null" &&
+      clientId !== "undefined"
+    ) {
+      where.userId = clientId;
+    }
+
+    console.log("Prisma Query Where:", JSON.stringify(where, null, 2));
+
+    const queryOptions: any = {
+      where,
       include: {
         user: {
           include: {
@@ -20,8 +62,14 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 500, // Limit to last 500 SMS logs
-    });
+    };
+
+    // Only apply limit if no date filter is present
+    if (!startDate || !endDate) {
+      queryOptions.take = 500;
+    }
+
+    const smsLogs = await prisma.smsLog.findMany(queryOptions);
 
     return NextResponse.json(smsLogs);
   } catch (error) {

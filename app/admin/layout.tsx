@@ -115,6 +115,12 @@ export default function AdminLayout({
                   {item.name}
                 </Link>
               ))}
+              <button
+                onClick={() => signOut()}
+                className="w-full group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                <LogOut className="mr-4 h-6 w-6" />
+                {t.navigation.logout}
+              </button>
             </nav>
           </div>
         </div>

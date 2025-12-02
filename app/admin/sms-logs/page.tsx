@@ -41,14 +41,37 @@ export default function AdminSmsLogsPage() {
   const [clientFilter, setClientFilter] = useState("ALL");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [clients, setClients] = useState<any[]>([]);
 
   useEffect(() => {
+    fetchClients();
     fetchSmsLogs();
   }, []);
 
+  const fetchClients = async () => {
+    try {
+      const response = await fetch("/api/admin/clients");
+      if (response.ok) {
+        const data = await response.json();
+        setClients(data);
+      }
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
+  };
+
   const fetchSmsLogs = async () => {
     try {
-      const response = await fetch("/api/admin/sms-logs");
+      let url = "/api/admin/sms-logs";
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      if (clientFilter !== "ALL") params.append("clientId", clientFilter);
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const response = await fetch(url, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setSmsLogs(data);
@@ -90,8 +113,8 @@ export default function AdminSmsLogsPage() {
 
   const filteredSmsLogs = smsLogs.filter((log) => {
     const statusMatch = filter === "ALL" || log.status === filter;
-    const clientMatch = clientFilter === "ALL" || log.user.id === clientFilter;
-    return statusMatch && clientMatch;
+    // Client filtering is now done on the server side
+    return statusMatch;
   });
 
   // Pagination logic
@@ -101,12 +124,58 @@ export default function AdminSmsLogsPage() {
   const paginatedSmsLogs = filteredSmsLogs.slice(startIndex, endIndex);
 
   const totalCost = filteredSmsLogs.reduce((sum, log) => sum + log.cost, 0);
-  const uniqueClients = Array.from(new Set(smsLogs.map((log) => log.user.id)));
+  // const uniqueClients = Array.from(new Set(smsLogs.map((log) => log.user.id)));
 
   // Reset to first page when filters or itemsPerPage change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, clientFilter, itemsPerPage]);
+  }, [filter, clientFilter, itemsPerPage, startDate, endDate]);
+
+  const handleExport = () => {
+    if (!filteredSmsLogs.length) return;
+
+    const headers = [
+      "ID",
+      "Phone Number",
+      "Message",
+      "Status",
+      "Cost",
+      "Sent At",
+      "Created At",
+      "Client Name",
+      "Company Name",
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...filteredSmsLogs.map((log) =>
+        [
+          log.id,
+          log.phoneNumber,
+          `"${log.message.replace(/"/g, '""')}"`,
+          log.status,
+          log.cost,
+          log.sentAt ? new Date(log.sentAt).toISOString() : "",
+          new Date(log.createdAt).toISOString(),
+          `"${log.user.name.replace(/"/g, '""')}"`,
+          `"${log.user.clientProfile.companyName.replace(/"/g, '""')}"`,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `sms_logs_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (loading) {
     return (
@@ -148,6 +217,12 @@ export default function AdminSmsLogsPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </button>
+          <button
+            onClick={handleExport}
+            disabled={filteredSmsLogs.length === 0}
+            className="ml-3 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -177,25 +252,66 @@ export default function AdminSmsLogsPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex flex-col space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={fetchSmsLogs}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Apply Date Filter
+          </button>
+          {(startDate || endDate) && (
+            <button
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                // Trigger fetch immediately after clearing to reset to default view
+                setTimeout(fetchSmsLogs, 0);
+              }}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+              Clear Dates
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Klien:</span>
             <select
               value={clientFilter}
-              onChange={(e) => setClientFilter(e.target.value)}
+              onChange={(e) => {
+                setClientFilter(e.target.value);
+                // Trigger fetch immediately when client changes
+                setTimeout(fetchSmsLogs, 0);
+              }}
               className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="ALL">Semua Klien</option>
-              {uniqueClients.map((clientId) => {
-                const client = smsLogs.find(
-                  (log) => log.user.id === clientId
-                )?.user;
-                return (
-                  <option key={clientId} value={clientId}>
-                    {client?.clientProfile.companyName} ({client?.name})
-                  </option>
-                );
-              })}
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.clientProfile?.companyName || "N/A"} ({client.name})
+                </option>
+              ))}
             </select>
           </div>
 
