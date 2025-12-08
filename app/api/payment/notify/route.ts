@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
     if (body?.reference_id) extraInfo.push(`provider_ref=${body.reference_id}`);
     if (body?.amount) extraInfo.push(`amount=${body.amount}`);
 
-    const notifyPaymentUrl =
-      body?.payment_url ||
-      body?.redirect_url ||
-      body?.data?.payment_url ||
-      body?.data?.redirect_url;
+    // const notifyPaymentUrl =
+    //   body?.payment_url ||
+    //   body?.redirect_url ||
+    //   body?.data?.payment_url ||
+    //   body?.data?.redirect_url;
 
     const updateData: any = {
       status: newStatus,
@@ -112,13 +112,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (
-      newStatus === "COMPLETED" &&
-      notifyPaymentUrl &&
-      !updateData.paymentUrl
-    ) {
-      updateData.paymentUrl = notifyPaymentUrl;
-    }
+    // if (
+    //   newStatus === "COMPLETED" &&
+    //   notifyPaymentUrl &&
+    //   !updateData.paymentUrl
+    // ) {
+    //   updateData.paymentUrl = notifyPaymentUrl;
+    // }
 
     await prisma.transaction.update({
       where: { id: tx.id },

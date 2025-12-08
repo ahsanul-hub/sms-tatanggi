@@ -99,10 +99,10 @@ export async function POST(request: NextRequest) {
       updateData.failureMessage = pivotStatus.failureMessage;
     }
 
-    // Simpan paymentUrl jika ada
-    if (pivotStatus.paymentUrl) {
-      updateData.paymentUrl = pivotStatus.paymentUrl;
-    }
+    // // Simpan paymentUrl jika ada
+    // if (pivotStatus.paymentUrl) {
+    //   updateData.paymentUrl = pivotStatus.paymentUrl;
+    // }
 
     const updatedTransaction = await prisma.transaction.update({
       where: { id: transaction.id },
