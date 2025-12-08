@@ -98,10 +98,10 @@ export async function POST(request: NextRequest) {
             updateData.failureMessage = pivotStatus.failureMessage;
           }
 
-          // Simpan paymentUrl jika ada
-          if (pivotStatus.paymentUrl) {
-            updateData.paymentUrl = pivotStatus.paymentUrl;
-          }
+          // // Simpan paymentUrl jika ada
+          // if (pivotStatus.paymentUrl) {
+          //   updateData.paymentUrl = pivotStatus.paymentUrl;
+          // }
 
           // Update status dengan status dari Pivot Payment
           updateData.status = newStatus;
