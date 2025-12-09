@@ -377,7 +377,16 @@ export default function ClientSummaryPage() {
                     <input
                       type="text"
                       value={customAmount}
-                      onChange={(e) => setCustomAmount(e.target.value)}
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/\D/g, "");
+                        if (!rawValue) {
+                          setCustomAmount("");
+                          return;
+                        }
+                        const formatted =
+                          Number(rawValue).toLocaleString("id-ID");
+                        setCustomAmount(formatted);
+                      }}
                       placeholder={t.summary.payment.partialAmount}
                       className="px-3 py-2 border border-gray-300 rounded-md text-sm w-52"
                     />
